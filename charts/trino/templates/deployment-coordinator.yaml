@@ -136,10 +136,10 @@ spec:
           volumeMounts:
             - mountPath: {{ .Values.server.config.path }}
               name: config-volume
-            {{- if or .Values.catalogs .Values.additionalCatalogs }}
-            - mountPath: {{ .Values.server.config.path }}/catalog
-              name: catalog-volume
-            {{- end }}
+            # {{- if or .Values.catalogs .Values.additionalCatalogs }}
+            # - mountPath: {{ .Values.server.config.path }}/catalog
+            #   name: catalog-volume
+            # {{- end }}
             - mountPath: {{ .Values.kafka.mountPath }}
               name: schemas-volume
             {{- if eq .Values.accessControl.type "configmap" }}
@@ -210,7 +210,12 @@ spec:
           lifecycle:
             {{- toYaml .Values.coordinator.lifecycle | nindent 12 }}
           resources:
-            {{- toYaml .Values.coordinator.resources | nindent 12 }}
+            requests:
+              cpu: {{ .Values.coordinator.resources.cpu | quote }}
+              memory: {{ .Values.coordinator.resources.memory | quote }}
+            limits:
+              cpu: {{ .Values.coordinator.resources.cpu | quote }}
+              memory: {{ .Values.coordinator.resources.memory | quote }}
       {{- if $coordinatorJmx.exporter.enabled }}
         - name: jmx-exporter
           image: {{ $coordinatorJmx.exporter.image }}

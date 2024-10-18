@@ -58,7 +58,7 @@ server:
     # PASSWORD, CERTIFICATE, OAUTH2, JWT, KERBEROS.
     authenticationType: ""
     query:
-      maxMemory: "4GB"
+      maxMemory: "20GB"
   exchangeManager: {}
   # server.exchangeManager -- Mandatory [exchange manager
   # configuration](https://trino.io/docs/current/admin/fault-tolerant-execution.html#id1).
@@ -82,6 +82,7 @@ server:
 
   workerExtraConfig: ""
   coordinatorExtraConfig: ""
+
   autoscaling:
     enabled: false
     maxReplicas: 5
@@ -254,7 +255,8 @@ additionalNodeProperties: []
 #  - node.id=${NODE_ID}
 # ```
 
-additionalConfigProperties: []
+additionalConfigProperties:
+  - catalog.management=dynamic
 # additionalConfigProperties -- [Additional config
 # properties](https://trino.io/docs/current/admin/properties.html).
 # @raw
@@ -387,6 +389,7 @@ sidecarContainers: {}
 securityContext:
   runAsUser: 1000
   runAsGroup: 1000
+  fsGroup: 1000
 
 # -- [Container security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container) configuration.
 containerSecurityContext:
@@ -398,6 +401,8 @@ containerSecurityContext:
     # the "CAP_" prefix which the kernel attaches to the names of permissions.
     drop:
       - ALL
+  runAsUser: 1000
+  runAsGroup: 1000
 
 shareProcessNamespace:
   coordinator: false
@@ -479,7 +484,7 @@ coordinator:
     # coordinator.deployment.strategy -- The deployment strategy to use to replace existing pods with new ones.
 
   jvm:
-    maxHeapSize: "8G"
+    maxHeapSize: "12G"
     gcMethod:
       type: "UseG1GC"
       g1:
@@ -487,9 +492,9 @@ coordinator:
 
   config:
     memory:
-      heapHeadroomPerNode: ""
+      heapHeadroomPerNode: "2GB"
     query:
-      maxMemoryPerNode: "1GB"
+      maxMemoryPerNode: "10GB"
 
   additionalJVMConfig: []
 
@@ -505,22 +510,9 @@ coordinator:
   #    protocol: TCP
   # ```
 
-  resources: {}
-  # coordinator.resources -- It is recommended not to specify default resources
-  # and to leave this as a conscious choice for the user. This also increases
-  # chances charts run on environments with little resources, such as Minikube.
-  # If you do want to specify resources, use the following example, and adjust
-  # it as necessary.
-  # @raw
-  # Example:
-  # ```yaml
-  #  limits:
-  #    cpu: 100m
-  #    memory: 128Mi
-  #  requests:
-  #    cpu: 100m
-  #    memory: 128Mi
-  # ```
+  resources:
+    cpu: 1.5
+    memory: 10Gi
 
   livenessProbe: {}
   # coordinator.livenessProbe -- [Liveness
@@ -577,22 +569,14 @@ coordinator:
   #   secret-value={{- .Values.someValue }}
   # ```
 
-  additionalVolumes: []
-  # coordinator.additionalVolumes -- One or more additional volumes to add to the coordinator.
-  # @raw
-  # Example:
-  # ```yaml
-  #  - name: extras
-  #    emptyDir: {}
-  # ```
+  additionalVolumes:
+    - name: data-volume
+      persistentVolumeClaim:
+        claimName: trino-coordinator-data
 
-  additionalVolumeMounts: []
-  # coordinator.additionalVolumeMounts -- One or more additional volume mounts to add to the coordinator.
-  # @raw
-  # Example:
-  #  - name: extras
-  #    mountPath: /usr/share/extras
-  #    readOnly: true
+  additionalVolumeMounts:
+    - name: data-volume
+      mountPath: /data/trino
 
   annotations: {}
 
@@ -620,6 +604,9 @@ coordinator:
   #    path: /secrets/sample.json
   # ```
 
+  securityContext:
+    fsGroup: 1000
+
 worker:
   deployment:
     progressDeadlineSeconds: 600
@@ -639,7 +626,7 @@ worker:
     # worker.deployment.strategy -- The deployment strategy to use to replace existing pods with new ones.
 
   jvm:
-    maxHeapSize: "8G"
+    maxHeapSize: "12G"
     gcMethod:
       type: "UseG1GC"
       g1:
@@ -647,9 +634,9 @@ worker:
 
   config:
     memory:
-      heapHeadroomPerNode: ""
+      heapHeadroomPerNode: "2GB"
     query:
-      maxMemoryPerNode: "1GB"
+      maxMemoryPerNode: "10GB"
 
   additionalJVMConfig: []
 
@@ -665,22 +652,9 @@ worker:
   #    protocol: TCP
   # ```
 
-  resources: {}
-  # worker.resources -- It is recommended not to specify default resources and
-  # to leave this as a conscious choice for the user. This also increases
-  # chances charts run on environments with little resources, such as Minikube.
-  # If you do want to specify resources, use the following example, and adjust
-  # it as necessary.
-  # @raw
-  # Example:
-  # ```yaml
-  #  limits:
-  #    cpu: 100m
-  #    memory: 128Mi
-  #  requests:
-  #    cpu: 100m
-  #    memory: 128Mi
-  # ```
+  resources:
+    cpu: 2
+    memory: 12Gi
 
   livenessProbe: {}
   # worker.livenessProbe -- [Liveness
@@ -757,24 +731,14 @@ worker:
   #   secret-value={{- .Values.someValue }}
   # ```
 
-  additionalVolumes: []
-  # worker.additionalVolumes -- One or more additional volume mounts to add to all workers.
-  # @raw
-  # Example:
-  # ```yaml
-  #  - name: extras
-  #    emptyDir: {}
-  # ```
+  additionalVolumes:
+    - name: data-volume
+      persistentVolumeClaim:
+        claimName: trino-worker-data
 
-  additionalVolumeMounts: []
-  # worker.additionalVolumeMounts -- One or more additional volume mounts to add to all workers.
-  # @raw
-  # Example:
-  # ```yaml
-  #  - name: extras
-  #    mountPath: /usr/share/extras
-  #    readOnly: true
-  # ```
+  additionalVolumeMounts:
+    - name: data-volume
+      mountPath: /data/trino
 
   annotations: {}
 
@@ -801,6 +765,20 @@ worker:
   #    secretName: sample-secret
   #    path: /secrets/sample.json
   # ```
+
+  securityContext:
+    fsGroup: 1000
+
+  podAntiAffinity:
+    podAffinityTerm:
+      labelSelector:
+        matchLabels:
+          statefulset.kubernetes.io/pod-name: ""
+
+  statefulSet:
+    podManagementPolicy: Parallel
+    updateStrategy:
+      type: RollingUpdate
 
 kafka:
   mountPath: "/etc/trino/schemas"
@@ -1030,3 +1008,18 @@ networkPolicy:
   #        port: 9999
   # ```
   egress: []
+
+# Add this new section to define the PVCs
+persistentVolumeClaim:
+  coordinator:
+    enabled: true
+    accessModes:
+      - ReadWriteOnce
+    size: 100Gi
+    storageClassName: balanced-storage
+  worker:
+    enabled: true
+    accessModes:
+      - ReadWriteOnce
+    size: 400Gi
+    storageClassName: balanced-storage

@@ -1,0 +1,17 @@
+{{- if .Values.persistentVolumeClaim.coordinator.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: trino-coordinator-data
+  labels:
+    {{- include "trino.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .Values.persistentVolumeClaim.coordinator.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.persistentVolumeClaim.coordinator.size }}
+  storageClassName: {{ .Values.persistentVolumeClaim.coordinator.storageClassName }}
+{{- end }}
+# Remove the worker PVC creation from here, as it will be handled by the StatefulSet
