@@ -110,6 +110,9 @@ data:
     resource-groups.config-file={{ .Values.server.config.path }}/resource-groups/resource-groups.json
 {{- end }}
 
+  catalog-store.properties: |
+    catalog.config-dir=/data/trino
+
 {{- if .Values.server.exchangeManager }}
   exchange-manager.properties: |
     exchange-manager.name={{ .Values.server.exchangeManager.name }}
